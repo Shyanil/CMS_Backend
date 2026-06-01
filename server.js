@@ -23,11 +23,27 @@ app.use(express.json())
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
 
+let supabase = null
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('CRITICAL: Supabase credentials are missing in .env file!')
+  console.error('CRITICAL: Supabase credentials (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) are missing in process.env!')
+} else {
+  try {
+    supabase = createClient(supabaseUrl, supabaseAnonKey)
+  } catch (err) {
+    console.error('CRITICAL: Failed to initialize Supabase client:', err.message)
+  }
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Middleware to ensure Supabase is configured before serving API endpoints
+app.use('/api', (req, res, next) => {
+  if (!supabase) {
+    return res.status(500).json({
+      error: 'Supabase credentials are missing or invalid in the backend. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your Render environment variables.'
+    })
+  }
+  next()
+})
 
 // Configure Multer for secure memory-based uploads
 const upload = multer({
