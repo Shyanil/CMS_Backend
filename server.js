@@ -90,31 +90,53 @@ app.get('/api/projects/:slug', async (req, res) => {
 // Create new project
 app.post('/api/projects', async (req, res) => {
   try {
+    console.log('POST /api/projects - Request Body:', JSON.stringify(req.body, null, 2))
     const { error, data } = await supabase
       .from('projects')
       .insert([req.body])
       .select()
 
-    if (error) throw error
+    if (error) {
+      console.error('POST /api/projects - Supabase Error:', error)
+      throw error
+    }
+    console.log('POST /api/projects - Success Data:', data)
     res.status(201).json(data?.[0] || { success: true })
   } catch (err) {
-    res.status(400).json({ error: err.message })
+    console.error('POST /api/projects - Caught Exception:', err)
+    res.status(400).json({ 
+      error: err.message,
+      details: err.details || null,
+      hint: err.hint || null,
+      code: err.code || null
+    })
   }
 })
 
 // Update existing project
 app.put('/api/projects/:id', async (req, res) => {
   try {
+    console.log(`PUT /api/projects/${req.params.id} - Request Body:`, JSON.stringify(req.body, null, 2))
     const { error, data } = await supabase
       .from('projects')
       .update(req.body)
       .eq('id', req.params.id)
       .select()
 
-    if (error) throw error
+    if (error) {
+      console.error(`PUT /api/projects/${req.params.id} - Supabase Error:`, error)
+      throw error
+    }
+    console.log(`PUT /api/projects/${req.params.id} - Success Data:`, data)
     res.json(data?.[0] || { success: true })
   } catch (err) {
-    res.status(400).json({ error: err.message })
+    console.error(`PUT /api/projects/${req.params.id} - Caught Exception:`, err)
+    res.status(400).json({ 
+      error: err.message,
+      details: err.details || null,
+      hint: err.hint || null,
+      code: err.code || null
+    })
   }
 })
 
