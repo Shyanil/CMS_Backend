@@ -48,7 +48,7 @@ app.use('/api', (req, res, next) => {
 // Configure Multer for secure memory-based uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 })
 
 // ==========================================
@@ -223,7 +223,20 @@ app.delete('/api/inquiries/:id', async (req, res) => {
 // ==========================================
 // 3. IMAGE UPLOAD ENDPOINT
 // ==========================================
-app.post('/api/upload', upload.array('files'), async (req, res) => {
+app.post('/api/upload', (req, res, next) => {
+  upload.array('files')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File too large. Maximum size per file is 50MB.' })
+      }
+      return res.status(400).json({ error: `Upload error: ${err.message}` })
+    }
+    if (err) {
+      return res.status(500).json({ error: err.message })
+    }
+    next()
+  })
+}, async (req, res) => {
   try {
     const files = req.files
     if (!files || files.length === 0) {
@@ -232,11 +245,11 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
 
     const publicUrls = []
     for (const file of files) {
-      const fileExt = file.originalname.split('.').pop()
+      const fileExt = file.originalname.split('.').pop().toLowerCase()
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
       const filePath = `project-images/${fileName}`
 
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('project-images')
         .upload(filePath, file.buffer, {
           contentType: file.mimetype,
@@ -245,7 +258,6 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
 
       if (error) throw error
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('project-images')
         .getPublicUrl(filePath)
@@ -253,6 +265,7 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
       publicUrls.push(publicUrl)
     }
 
+    console.log(`POST /api/upload - Uploaded ${publicUrls.length} file(s)`)
     res.json({ urls: publicUrls })
   } catch (err) {
     console.error('Storage Upload Error:', err)
